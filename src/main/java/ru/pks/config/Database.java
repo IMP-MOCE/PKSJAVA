@@ -18,7 +18,7 @@ public final class Database {
     public static Database fromEnvironment() {
         String password = System.getenv("DB_PASSWORD");
         if (password == null || password.isBlank()) {
-            throw new IllegalStateException("Не задан DB_PASSWORD. Запустите приложение через scripts/run.ps1.");
+            throw new IllegalStateException("Не задан DB_PASSWORD. Запустите приложение через run.cmd.");
         }
         return new Database(
             System.getenv().getOrDefault("DB_URL", "jdbc:postgresql://127.0.0.1:5433/pksjava"),

@@ -1,7 +1,33 @@
 {
   "version": "2.0.0",
   "tasks": [
-    {"label": "Run console IS", "type": "shell", "command": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/run.ps1"], "problemMatcher": []},
-    {"label": "Test Java", "type": "shell", "command": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/maven.ps1", "test"], "group": "test", "problemMatcher": []}
+    {
+      "label": "Запустить парковку",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/project.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Проверить проект",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/project.ps1",
+        "test"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    }
   ]
 }

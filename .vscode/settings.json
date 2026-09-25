@@ -3,11 +3,25 @@
   "jdk.project.jdkhome": "${workspaceFolder}/.tools/jdk",
   "java.jdt.ls.java.home": "${workspaceFolder}/.tools/jdk",
   "java.configuration.runtimes": [
-    {"name": "JavaSE-21", "path": "${workspaceFolder}/.tools/jdk", "default": true}
+    {
+      "name": "JavaSE-21",
+      "path": "${workspaceFolder}/.tools/jdk",
+      "default": true
+    }
   ],
   "files.encoding": "utf8",
-  "files.exclude": {"**/.tools": true, "**/.local": true},
-  "files.watcherExclude": {"**/.tools/**": true, "**/.local/**": true},
-  "java.import.exclusions": ["**/.tools/**", "**/.local/**"],
+  "files.exclude": {
+    "**/.tools": true,
+    "**/.local": true,
+    "**/target": true
+  },
+  "files.watcherExclude": {
+    "**/.tools/**": true,
+    "**/.local/**": true
+  },
+  "java.import.exclusions": [
+    "**/.tools/**",
+    "**/.local/**"
+  ],
   "maven.executable.path": "${workspaceFolder}/.tools/maven/bin/mvn.cmd"
 }
