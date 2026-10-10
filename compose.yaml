@@ -1,0 +1,25 @@
+name: parking
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pksjava
+      POSTGRES_USER: pks_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Запустите через run.cmd}
+      POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - parking_data:/var/lib/postgresql
+      - ./sql:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pks_app -d pksjava"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  parking_data:
