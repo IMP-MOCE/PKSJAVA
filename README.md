@@ -145,34 +145,4 @@ mvn javafx:run
 
 На этом компьютере `run.cmd` использует прежний пароль. Для другой базы задайте переменные выше и запускайте JAR напрямую.
 
-## Учебный пример и Docker из задания
-
-PDF требует отдельно изучить готовую систему Student Hub через Docker. У парковки собственный контейнер PostgreSQL; JavaFX подключается к нему через JDBC. Student Hub остаётся отдельным учебным примером.
-
-Архив `student-hub-suite.zip` распакован в `.local/kr2-example/student-hub-suite-rebuilt` (в Git не входит). В нём отсутствовал `.env`: создан локальный файл со случайными паролями, портами 8080 и 55432. В `backend/docker-compose.yml` исправлен порт PostgreSQL внутри контейнера: `5432`. Проекты Compose, тома и порты парковки и Student Hub различаются.
-
-Docker Desktop восстановлен: после его закрытия папки служебных сокетов `C:/Users/Lecoo/AppData/Local/Docker/run` и `C:/Users/Lecoo/AppData/Local/docker-secrets-engine` переименованы с суффиксом `.backup-20261010-105737`. При следующем запуске Docker создал новые папки. Образы, контейнеры и тома сохранены.
-
-Запуск примера из корня парковки:
-
-```powershell
-$demo = '.local/kr2-example/student-hub-suite-rebuilt'
-& 'C:/Program Files/Docker/Docker/resources/bin/docker.exe' compose --env-file "$demo/.env" -f "$demo/backend/docker-compose.yml" up -d --wait db backend
-```
-
-Проверено 10.10.2026: контейнеры `db` и `backend` исправны (`healthy`), сайт возвращает HTTP 200, `/actuator/health` — `UP`. Вход администратора и запрос `/api/auth/me` успешны. JavaFX-клиент примера собран и запущен; его 6 тестов прошли.
-
-Открыть `http://localhost:8080/`; состояние backend — `http://localhost:8080/actuator/health`. Для JavaFX-клиента примера на этом компьютере:
-
-```powershell
-$env:JAVA_HOME = "$PWD/.tools/jdk"
-& '.tools/maven/bin/mvn.cmd' -f "$demo/javafx-client/pom.xml" "-Dmaven.repo.local=$PWD/.tools/m2" javafx:run
-```
-
-Логин и временный пароль находятся в локальном `.env`: `BOOTSTRAP_ADMIN_EMAIL` и `BOOTSTRAP_ADMIN_PASSWORD`. Логин — `admin@example.org`. При первом входе приложение попросит задать постоянный пароль.
-
-Остановка примера — та же команда Compose с `down` вместо `up -d --wait db backend`, без удаления томов.
-
-Если ошибка `dockerInference` повторится, полностью закройте Docker Desktop и переименуйте только эти две папки сокетов с новым суффиксом `.backup-дата`, затем откройте Docker снова. Обход описан в [обсуждении ошибки Docker Desktop](https://github.com/docker/desktop-feedback/issues/460). Папку с дисками Docker переименовывать не нужно.
-
 Официальная инструкция JavaFX/Maven: [OpenJFX](https://openjfx.io/openjfx-docs/).
