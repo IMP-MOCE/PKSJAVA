@@ -1,0 +1,21 @@
+.root { -fx-font-family: "Segoe UI"; -fx-font-size: 14px; -fx-base: #f4f6f8; -fx-accent: #236a56; }
+.root-panel { -fx-background-color: #f4f6f8; }
+.header { -fx-padding: 20 24; -fx-background-color: #173e34; }
+.title { -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white; }
+.subtitle { -fx-text-fill: #c8ded6; }
+.content { -fx-padding: 18; }
+.section-title { -fx-font-size: 22px; -fx-font-weight: bold; }
+.hint { -fx-text-fill: #586574; -fx-font-size: 13px; }
+.button { -fx-padding: 8 14; -fx-cursor: hand; -fx-background-radius: 5; }
+.button.primary { -fx-background-color: #236a56; -fx-text-fill: white; }
+.button.primary:hover { -fx-background-color: #19513f; }
+.button.danger { -fx-text-fill: #a12424; }
+.table-view { -fx-background-color: white; -fx-border-color: #d5dde2; -fx-border-radius: 4; }
+.table-view .column-header { -fx-size: 36; }
+.table-row-cell { -fx-cell-size: 36; }
+.table-row-cell:selected { -fx-background-color: #236a56; }
+.table-row-cell:selected .table-cell { -fx-text-fill: white; }
+.text-field, .combo-box, .date-picker { -fx-pref-height: 34; }
+.form { -fx-padding: 8; }
+.error { -fx-text-fill: #a12424; -fx-font-weight: bold; }
+.statistics { -fx-font-size: 18px; -fx-line-spacing: 10px; }

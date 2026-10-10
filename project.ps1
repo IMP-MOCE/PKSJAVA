@@ -1,5 +1,5 @@
 ﻿# One entry point for local setup, launch and checks.
-param([ValidateSet('run','test','build','seed','setup','db-start','db-stop','db-status','db-shell')]
+param([ValidateSet('run','console','test','build','seed','setup','db-start','db-stop','db-status','db-shell')]
       [string]$Action = 'run')
 
 $ErrorActionPreference = 'Stop'
@@ -127,7 +127,7 @@ function Invoke-Maven {
 
 Push-Location $projectRoot
 try {
-    if ($Action -in @('run', 'test', 'build', 'setup')) { Install-Tools }
+    if ($Action -in @('run', 'console', 'test', 'build', 'setup')) { Install-Tools }
     switch ($Action) {
         'setup' {
             & "$env:JAVA_HOME\bin\java.exe" -version
@@ -137,11 +137,13 @@ try {
         'test' {
             Invoke-Database start
             $previous = $env:RUN_DB_TESTS
+            $previousFx = $env:RUN_FX_TESTS
             try {
                 $env:RUN_DB_TESTS = 'true'
+                $env:RUN_FX_TESTS = 'true'
                 Invoke-Maven verify
                 Invoke-Maven -q test '-Dtest=PostgresIntegrationTest' "-DpackagedJar=$projectRoot\target\parking-1.0-SNAPSHOT.jar"
-            } finally { $env:RUN_DB_TESTS = $previous }
+            } finally { $env:RUN_DB_TESTS = $previous; $env:RUN_FX_TESTS = $previousFx }
         }
         'seed' {
             Invoke-Database start
@@ -155,14 +157,15 @@ try {
         'db-stop' { Invoke-Database stop }
         'db-status' { Invoke-Database status }
         'db-shell' { Invoke-Database shell }
-        'run' {
+        { $_ -in @('run', 'console') } {
             Invoke-Database start
             Invoke-Maven -q package '-DskipTests'
             # A private copy protects a running application from subsequent builds.
             $runtimeJar = Join-Path $localDir ("parking-run-" + [guid]::NewGuid().ToString('N') + '.jar')
             Copy-Item -LiteralPath "$projectRoot\target\parking-1.0-SNAPSHOT.jar" -Destination $runtimeJar
+            $appArgs = if ($Action -eq 'console') { @('--console') } else { @() }
             try {
-                & "$env:JAVA_HOME\bin\java.exe" '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -jar $runtimeJar
+                & "$env:JAVA_HOME\bin\java.exe" '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -jar $runtimeJar @appArgs
                 if ($LASTEXITCODE -ne 0) { throw 'Application failed' }
             } finally { Remove-Item -LiteralPath $runtimeJar -ErrorAction SilentlyContinue }
         }

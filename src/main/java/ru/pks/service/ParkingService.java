@@ -88,6 +88,20 @@ public final class ParkingService {
         return bookings().stream().filter(b -> b.spot() == spot).toList();
     }
 
+    public List<Booking> search(String query, BookingStatus status, LocalDate from, LocalDate to) {
+        if (from != null && to != null && from.isAfter(to))
+            throw new IllegalArgumentException("Начало периода позже конца.");
+        String text = query.strip().toLowerCase(Locale.ROOT);
+        Set<Long> people = new HashSet<>();
+        employees().stream().filter(e -> (e.name() + " " + e.email()).toLowerCase(Locale.ROOT).contains(text))
+            .forEach(e -> people.add(e.id()));
+        return bookings().stream()
+            .filter(b -> text.isEmpty() || people.contains(b.employeeId()) || Integer.toString(b.spot()).equals(text))
+            .filter(b -> status == null || b.status() == status)
+            .filter(b -> from == null || !b.date().isBefore(from))
+            .filter(b -> to == null || !b.date().isAfter(to)).toList();
+    }
+
     public List<Booking> filterStatus(BookingStatus status) {
         return bookings().stream().filter(b -> b.status() == status).toList();
     }

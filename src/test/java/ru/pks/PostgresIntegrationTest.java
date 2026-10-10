@@ -73,6 +73,19 @@ class PostgresIntegrationTest {
                 assertEquals(25, service.get(created.id()).spot());
                 runJar(testUrl, "8\n" + created.id() + "\n0\n");
                 assertEquals(10, repo.bookings().size());
+                if ("true".equals(System.getenv("RUN_FX_TESTS"))) {
+                    String classpath = System.getProperty("packagedJar") + java.io.File.pathSeparator
+                        + Path.of("target/test-classes").toAbsolutePath();
+                    var command = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java.exe").toString(),
+                        "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-cp", classpath, "ru.pks.ui.PackagedFxSmoke");
+                    command.environment().put("DB_URL", testUrl);
+                    Path log = temp.resolve("javafx.log");
+                    var process = command.redirectErrorStream(true).redirectOutput(log.toFile()).start();
+                    try {
+                        assertTrue(process.waitFor(40, TimeUnit.SECONDS), "JavaFX JAR завис при запуске");
+                        assertEquals(0, process.exitValue(), Files.readString(log));
+                    } finally { if (process.isAlive()) process.destroyForcibly(); }
+                }
             }
         } finally {
             try (var c = main.connect(); var s = c.createStatement()) {
@@ -84,7 +97,7 @@ class PostgresIntegrationTest {
     private void runJar(String url, String commands) throws Exception {
         Path log = temp.resolve("console.log");
         var builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java.exe").toString(),
-            "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-jar", System.getProperty("packagedJar"));
+            "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-jar", System.getProperty("packagedJar"), "--console");
         builder.environment().put("DB_URL", url);
         builder.redirectErrorStream(true).redirectOutput(log.toFile());
         Process process = builder.start();

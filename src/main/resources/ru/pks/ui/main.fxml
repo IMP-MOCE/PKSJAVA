@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" styleClass="root-panel">
+    <top>
+        <VBox spacing="6" styleClass="header">
+            <Label text="Корпоративная парковка" styleClass="title"/>
+            <Label text="50 мест · Бронирование на целый день" styleClass="subtitle"/>
+        </VBox>
+    </top>
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE">
+            <tabs>
+                <Tab text="Бронирования">
+                    <VBox spacing="12" styleClass="content">
+                        <FlowPane hgap="8" vgap="8">
+                            <TextField fx:id="search" promptText="ФИО, почта или номер места" prefWidth="265" onAction="#refresh"/>
+                            <ComboBox fx:id="statusFilter" promptText="Все статусы" prefWidth="170"/>
+                            <Label text="С"/>
+                            <DatePicker fx:id="fromDate" prefWidth="145"/>
+                            <Label text="По"/>
+                            <DatePicker fx:id="toDate" prefWidth="145"/>
+                            <Button text="Найти" onAction="#refresh"/>
+                            <Button text="Сбросить" onAction="#resetFilters"/>
+                        </FlowPane>
+                        <FlowPane hgap="8" vgap="8">
+                            <Button fx:id="addBookingButton" text="Добавить бронь" onAction="#addBooking" styleClass="primary"/>
+                            <Button fx:id="editButton" text="Изменить" onAction="#editBooking"/>
+                            <Button fx:id="deleteButton" text="Удалить" onAction="#deleteBooking" styleClass="danger"/>
+                            <Button text="Обновить" onAction="#refresh"/>
+                            <Button text="Экспорт Excel" onAction="#export"/>
+                        </FlowPane>
+                        <Label text="Для сортировки нажмите заголовок столбца." styleClass="hint"/>
+                        <TableView fx:id="bookingTable" VBox.vgrow="ALWAYS">
+                            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+                            <columns>
+                                <TableColumn fx:id="bookingId" text="Бронь №" prefWidth="90"/>
+                                <TableColumn fx:id="employeeName" text="Сотрудник" prefWidth="280"/>
+                                <TableColumn fx:id="bookingSpot" text="Место" prefWidth="100"/>
+                                <TableColumn fx:id="bookingDate" text="Дата" prefWidth="160"/>
+                                <TableColumn fx:id="bookingStatus" text="Статус" prefWidth="190"/>
+                            </columns>
+                        </TableView>
+                        <Label fx:id="selectedEmployee" text="Выберите бронь для просмотра сотрудника." wrapText="true"/>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <Label text="Статус выбранной брони:"/>
+                            <ComboBox fx:id="newStatus" prefWidth="185"/>
+                            <Button fx:id="statusButton" text="Применить" onAction="#changeStatus"/>
+                        </HBox>
+                        <Label fx:id="count" text="Данные ещё не загружены" styleClass="hint" wrapText="true"/>
+                    </VBox>
+                </Tab>
+                <Tab text="Сотрудники">
+                    <VBox spacing="12" styleClass="content">
+                        <HBox spacing="8">
+                            <Button fx:id="addEmployeeButton" text="Добавить сотрудника" onAction="#addEmployee" styleClass="primary"/>
+                            <Button text="Обновить" onAction="#refresh"/>
+                        </HBox>
+                        <TableView fx:id="employeeTable" VBox.vgrow="ALWAYS">
+                            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+                            <columns>
+                                <TableColumn fx:id="personName" text="ФИО" prefWidth="420"/>
+                                <TableColumn fx:id="personEmail" text="Почта" prefWidth="420"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </Tab>
+                <Tab text="Статистика">
+                    <VBox spacing="18" styleClass="content">
+                        <Label text="Общая статистика парковки" styleClass="section-title"/>
+                        <Label text="По всем записям, независимо от фильтров таблицы." styleClass="hint"/>
+                        <Label fx:id="statistics" text="Данные ещё не загружены" styleClass="statistics"/>
+                        <Button text="Обновить статистику" onAction="#refresh"/>
+                    </VBox>
+                </Tab>
+            </tabs>
+        </TabPane>
+    </center>
+</BorderPane>
