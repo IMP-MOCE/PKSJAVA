@@ -20,21 +20,29 @@ import java.util.concurrent.*;
 import javax.imageio.ImageIO;
 import static org.junit.jupiter.api.Assertions.*;
 
+// тест настоящего окна: грузим main.fxml, жмём кнопки, заполняем формы и смотрим, что поменялось
+// база не нужна, сервис работает поверх хранилища в памяти (внизу файла)
+// запускается только если RUN_FX_TESTS=true, потому что реально открывает окна на экране
 @EnabledIfEnvironmentVariable(named = "RUN_FX_TESTS", matches = "true")
 class JavaFxTest {
+    // один раз на все тесты поднимаем javafx и ждём, пока он стартанёт
     @BeforeAll static void startJavaFx() throws Exception {
-        var started = new CountDownLatch(1);
-        Platform.startup(() -> { Platform.setImplicitExit(false); started.countDown(); });
-        assertTrue(started.await(15, TimeUnit.SECONDS));
+        var javaFxStarted = new CountDownLatch(1);
+        // setImplicitExit(false), чтобы javafx не выключился сам, когда мы закроем последнее окно
+        Platform.startup(() -> { Platform.setImplicitExit(false); javaFxStarted.countDown(); });
+        assertTrue(javaFxStarted.await(15, TimeUnit.SECONDS));
     }
 
     @AfterAll static void stopJavaFx() { Platform.exit(); }
 
     @Test void fxmlFormsTableFiltersAndDeleteConfirmation() throws Exception {
-        var task = new FutureTask<Void>(() -> {
-            var repo = new MemoryRepository();
-            var service = new ParkingService(repo);
-            var first = service.create(1, 24, LocalDate.now());
+        // с окнами javafx можно работать только из его собственного потока,
+        // поэтому весь тест заворачиваем в задачу и отдаём её туда через Platform.runLater
+        var uiTask = new FutureTask<Void>(() -> {
+            var memoryRepository = new MemoryRepository();
+            var service = new ParkingService(memoryRepository);
+            // Петров на место 24 сегодня, Смирнова на место 12 завтра
+            var petrovBooking = service.create(1, 24, LocalDate.now());
             service.create(2, 12, LocalDate.now().plusDays(1));
             var controller = new MainController(service);
             var loader = new FXMLLoader(MainController.class.getResource("main.fxml"));
@@ -46,21 +54,27 @@ class JavaFxTest {
             stage.setScene(scene);
             stage.show();
             try {
+                // --- таблица и поиск ---
                 controller.refresh();
-                TableView<Booking> table = node(root, "bookingTable");
-                assertEquals(2, table.getItems().size());
-                TextField search = node(root, "search");
-                search.setText("24");
+                TableView<Booking> bookingTable = node(root, "bookingTable");
+                assertEquals(2, bookingTable.getItems().size());
+                TextField searchField = node(root, "searchField");
+                searchField.setText("24");
                 controller.refresh();
-                assertEquals(List.of(first), List.copyOf(table.getItems()));
-                search.clear();
+                assertEquals(List.of(petrovBooking), List.copyOf(bookingTable.getItems()));
+                searchField.clear();
                 controller.refresh();
-                TableColumn<Booking, Integer> spotColumn = (TableColumn<Booking, Integer>) table.getColumns().get(2);
-                table.getSortOrder().setAll(spotColumn);
-                assertEquals(12, table.getItems().getFirst().spot());
-                table.getSelectionModel().select(first);
-                assertTrue(((Label) root.lookup("#selectedEmployee")).getText().contains("petrov@company.ru"));
+                // сортируем по колонке "Место" (она третья по счёту), первым должно встать место 12
+                TableColumn<Booking, Integer> spotColumn = (TableColumn<Booking, Integer>) bookingTable.getColumns().get(2);
+                bookingTable.getSortOrder().setAll(spotColumn);
+                assertEquals(12, bookingTable.getItems().getFirst().spot());
+                // выделили бронь, и под таблицей появилась почта сотрудника
+                bookingTable.getSelectionModel().select(petrovBooking);
+                assertTrue(((Label) root.lookup("#selectedEmployeeLabel")).getText().contains("petrov@company.ru"));
+
+                // --- скриншоты окна в target, в обычном и минимальном размере, чтобы глазами проверить вёрстку ---
                 snapshot(scene, "target/javafx-main.png");
+                // root нельзя сразу повесить на вторую сцену, поэтому сначала отцепляем его от первой
                 scene.setRoot(new javafx.scene.layout.VBox());
                 var smallScene = new Scene(root, 850, 580);
                 smallScene.getStylesheets().addAll(scene.getStylesheets());
@@ -68,104 +82,123 @@ class JavaFxTest {
                 stage.sizeToScene();
                 snapshot(smallScene, "target/javafx-small.png");
 
-                // Нажимаем настоящую кнопку формы: неверный ввод не закрывает диалог.
+                // --- создание брони через форму ---
+                // хитрость: кнопка "Добавить бронь" открывает модальный диалог через showAndWait и ждёт, пока его закроют
+                // поэтому действия внутри диалога заранее ставим в очередь через runLater, они выполнятся, когда диалог уже открыт
+                // жмём настоящую кнопку "Сохранить": с кривым местом диалог не закрывается и ввод не теряется
                 Platform.runLater(() -> {
                     Parent dialog = dialogRoot();
-                    TextField spot = node(dialog, "spot");
-                    ComboBox<Employee> person = node(dialog, "employee");
-                    person.getSelectionModel().selectFirst();
-                    DatePicker date = node(dialog, "date");
-                    date.setValue(LocalDate.now().plusDays(2));
-                    spot.setText("abc");
+                    TextField spotField = node(dialog, "spotField");
+                    ComboBox<Employee> employeeComboBox = node(dialog, "employeeComboBox");
+                    employeeComboBox.getSelectionModel().selectFirst();
+                    DatePicker datePicker = node(dialog, "datePicker");
+                    datePicker.setValue(LocalDate.now().plusDays(2));
+                    spotField.setText("abc");
                     saveButton(dialog).fire();
-                    assertEquals("abc", spot.getText());
+                    assertEquals("abc", spotField.getText());
                     assertTrue(((Label) dialog.lookup(".error")).getText().contains("целое"));
-                    spot.setText("30");
+                    spotField.setText("30");
                     saveButton(dialog).fire();
                 });
                 ((Button) root.lookup("#addBookingButton")).fire();
-                assertEquals(3, table.getItems().size());
+                assertEquals(3, bookingTable.getItems().size());
 
-                table.getSelectionModel().select(first);
+                // --- изменение брони: в форме уже стоит старое место, а сотрудник заблокирован ---
+                bookingTable.getSelectionModel().select(petrovBooking);
                 Platform.runLater(() -> {
                     Parent dialog = dialogRoot();
-                    TextField spot = node(dialog, "spot");
-                    assertEquals("24", spot.getText());
-                    assertTrue(((ComboBox<?>) dialog.lookup("#employee")).isDisabled());
-                    spot.setText("26");
+                    TextField spotField = node(dialog, "spotField");
+                    assertEquals("24", spotField.getText());
+                    assertTrue(((ComboBox<?>) dialog.lookup("#employeeComboBox")).isDisabled());
+                    spotField.setText("26");
                     saveButton(dialog).fire();
                 });
                 ((Button) root.lookup("#editButton")).fire();
-                Booking edited = service.get(first.id());
-                assertEquals(26, edited.spot());
-                table.getSelectionModel().select(edited);
-                ComboBox<BookingStatus> status = node(root, "newStatus");
-                status.setValue(BookingStatus.CONFIRMED);
-                ((Button) root.lookup("#statusButton")).fire();
-                assertEquals(BookingStatus.CONFIRMED, service.get(first.id()).status());
+                Booking editedBooking = service.get(petrovBooking.id());
+                assertEquals(26, editedBooking.spot());
 
-                table.getSelectionModel().select(service.get(first.id()));
+                // --- смена статуса ---
+                bookingTable.getSelectionModel().select(editedBooking);
+                ComboBox<BookingStatus> newStatusComboBox = node(root, "newStatusComboBox");
+                newStatusComboBox.setValue(BookingStatus.CONFIRMED);
+                ((Button) root.lookup("#statusButton")).fire();
+                assertEquals(BookingStatus.CONFIRMED, service.get(petrovBooking.id()).status());
+
+                // --- удаление: на "Нет" ничего не удаляется, на "Да" удаляется ---
+                bookingTable.getSelectionModel().select(service.get(petrovBooking.id()));
                 Platform.runLater(() -> ((Button) ((DialogPane) dialogRoot()).lookupButton(ButtonType.NO)).fire());
                 ((Button) root.lookup("#deleteButton")).fire();
-                assertEquals(3, table.getItems().size());
-                table.getSelectionModel().select(service.get(first.id()));
+                assertEquals(3, bookingTable.getItems().size());
+                bookingTable.getSelectionModel().select(service.get(petrovBooking.id()));
                 Platform.runLater(() -> ((Button) ((DialogPane) dialogRoot()).lookupButton(ButtonType.YES)).fire());
                 ((Button) root.lookup("#deleteButton")).fire();
-                assertEquals(2, table.getItems().size());
+                assertEquals(2, bookingTable.getItems().size());
 
-                var form = new EmployeeFormController(service);
-                var employeeLoader = new FXMLLoader(MainController.class.getResource("employee-form.fxml"));
-                employeeLoader.setController(form);
-                Parent employeeRoot = employeeLoader.load();
-                ((TextField) employeeRoot.lookup("#name")).setText("Мария");
-                ((TextField) employeeRoot.lookup("#email")).setText("maria@company.ru");
-                form.save();
+                // --- форма сотрудника, тут без диалога: грузим fxml сами и вызываем save напрямую ---
+                var employeeFormController = new EmployeeFormController(service);
+                var employeeFormLoader = new FXMLLoader(MainController.class.getResource("employee-form.fxml"));
+                employeeFormLoader.setController(employeeFormController);
+                Parent employeeFormRoot = employeeFormLoader.load();
+                ((TextField) employeeFormRoot.lookup("#nameField")).setText("Мария");
+                ((TextField) employeeFormRoot.lookup("#emailField")).setText("maria@company.ru");
+                employeeFormController.save();
                 assertEquals(3, service.employees().size());
             } finally { stage.close(); }
             return null;
         });
-        Platform.runLater(task);
-        task.get(45, TimeUnit.SECONDS);
+        Platform.runLater(uiTask);
+        // ждём, пока задача отработает в потоке javafx, а если внутри упал assert, get() пробросит ошибку сюда
+        uiTask.get(45, TimeUnit.SECONDS);
     }
 
+    // ищет элемент по fx:id и сразу приводит к нужному типу, чтобы не писать каст каждый раз
     @SuppressWarnings("unchecked")
-    private static <T> T node(Parent root, String id) { return (T) root.lookup("#" + id); }
+    private static <T> T node(Parent root, String fxId) { return (T) root.lookup("#" + fxId); }
+
+    // корень самого последнего открытого окна, то есть текущего диалога
     private static Parent dialogRoot() {
-        return Window.getWindows().stream().filter(Window::isShowing).reduce((a, b) -> b).orElseThrow().getScene().getRoot();
-    }
-    private static Button saveButton(Parent root) {
-        var pane = (DialogPane) root;
-        return (Button) pane.lookupButton(pane.getButtonTypes().stream()
-            .filter(b -> b.getButtonData() == ButtonBar.ButtonData.OK_DONE).findFirst().orElseThrow());
-    }
-    private static void snapshot(Scene scene, String file) throws Exception {
-        var image = scene.snapshot(null);
-        var png = new BufferedImage((int) image.getWidth(), (int) image.getHeight(), BufferedImage.TYPE_INT_ARGB);
-        for (int y = 0; y < png.getHeight(); y++)
-            for (int x = 0; x < png.getWidth(); x++) png.setRGB(x, y, image.getPixelReader().getArgb(x, y));
-        Files.createDirectories(Path.of(file).getParent());
-        ImageIO.write(png, "png", Path.of(file).toFile());
+        return Window.getWindows().stream().filter(Window::isShowing)
+            .reduce((previousWindow, nextWindow) -> nextWindow).orElseThrow().getScene().getRoot();
     }
 
+    // кнопка "Сохранить" в диалоге, ищем её по типу OK_DONE
+    private static Button saveButton(Parent dialogRoot) {
+        var dialogPane = (DialogPane) dialogRoot;
+        return (Button) dialogPane.lookupButton(dialogPane.getButtonTypes().stream()
+            .filter(buttonType -> buttonType.getButtonData() == ButtonBar.ButtonData.OK_DONE).findFirst().orElseThrow());
+    }
+
+    // делает скриншот сцены и сохраняет в png, пиксели копируем по одному из картинки javafx в обычную java-картинку
+    private static void snapshot(Scene scene, String filePath) throws Exception {
+        var fxImage = scene.snapshot(null);
+        var pngImage = new BufferedImage((int) fxImage.getWidth(), (int) fxImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < pngImage.getHeight(); y++)
+            for (int x = 0; x < pngImage.getWidth(); x++) pngImage.setRGB(x, y, fxImage.getPixelReader().getArgb(x, y));
+        Files.createDirectories(Path.of(filePath).getParent());
+        ImageIO.write(pngImage, "png", Path.of(filePath).toFile());
+    }
+
+    // такое же хранилище в памяти, как в ParkingServiceTest, только у сотрудников полные имена и почты
     private static final class MemoryRepository implements ParkingRepository {
         private final List<Employee> employees = new ArrayList<>(List.of(
             new Employee(1, "Иван Петров", "petrov@company.ru"), new Employee(2, "Анна Смирнова", "smirnova@company.ru")));
         private final List<Booking> bookings = new ArrayList<>();
-        private long nextId = 1;
+        private long nextBookingId = 1;
         public List<Employee> employees() { return List.copyOf(employees); }
         public Employee addEmployee(String name, String email) {
-            var employee = new Employee(employees.size() + 1, name, email);
-            employees.add(employee);
-            return employee;
+            var newEmployee = new Employee(employees.size() + 1, name, email);
+            employees.add(newEmployee);
+            return newEmployee;
         }
         public List<Booking> bookings() { return List.copyOf(bookings); }
-        public Booking save(Booking b) {
-            bookings.removeIf(old -> old.id() == b.id());
-            var saved = new Booking(b.id() == 0 ? nextId++ : b.id(), b.employeeId(), b.spot(), b.date(), b.status());
-            bookings.add(saved);
-            return saved;
+        public Booking save(Booking booking) {
+            bookings.removeIf(storedBooking -> storedBooking.id() == booking.id());
+            var savedBooking = new Booking(booking.id() == 0 ? nextBookingId++ : booking.id(),
+                booking.employeeId(), booking.spot(), booking.date(), booking.status());
+            bookings.add(savedBooking);
+            return savedBooking;
         }
-        public boolean delete(long id) { return bookings.removeIf(b -> b.id() == id); }
+        public boolean delete(long id) { return bookings.removeIf(booking -> booking.id() == id); }
         public List<String> tables() { return List.of("employees", "bookings"); }
     }
 }

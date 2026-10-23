@@ -10,6 +10,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
+// старая консольная версия из кр1, запускается с флагом --console
+// по кругу печатаем меню, читаем номер пункта и зовём нужный метод сервиса
+// Scanner передаётся снаружи, поэтому в тестах вместо клавиатуры можно подсунуть готовую строку с командами
 public final class ConsoleMenu {
     private final ParkingService service;
     private final Scanner input;
@@ -19,6 +22,7 @@ public final class ConsoleMenu {
         this.input = input;
     }
 
+    // главный цикл меню, выходим по пункту 0 или когда закончился ввод
     public void run() {
         while (true) {
             System.out.println("""
@@ -35,10 +39,11 @@ public final class ConsoleMenu {
                 17. Таблицы БД     0. Выход
                 """);
             try {
+                // каждый пункт это одна строчка: спросили что нужно, вызвали сервис, вывели результат
                 switch (read("Действие: ")) {
                     case "0" -> { return; }
-                    case "1" -> service.employees().forEach(e ->
-                        System.out.printf("%d | %s | %s%n", e.id(), e.name(), e.email()));
+                    case "1" -> service.employees().forEach(employee ->
+                        System.out.printf("%d | %s | %s%n", employee.id(), employee.name(), employee.email()));
                     case "2" -> System.out.println("Добавлен: " + service.addEmployee(read("ФИО: "), read("Почта: ")));
                     case "3" -> display(service.bookings());
                     case "4" -> display(List.of(service.get(id())));
@@ -54,9 +59,9 @@ public final class ConsoleMenu {
                     case "14" -> display(service.sorted(false));
                     case "15" -> service.statistics().forEach((label, value) -> System.out.println(label + ": " + value));
                     case "16" -> {
-                        Path file = Path.of("export", "parking.xlsx");
-                        ExcelExporter.export(file, service.employees(), service.bookings());
-                        System.out.println("Сохранено: " + file.toAbsolutePath());
+                        Path exportFile = Path.of("export", "parking.xlsx");
+                        ExcelExporter.export(exportFile, service.employees(), service.bookings());
+                        System.out.println("Сохранено: " + exportFile.toAbsolutePath());
                     }
                     case "17" -> {
                         service.tables().forEach(System.out::println);
@@ -67,6 +72,7 @@ public final class ConsoleMenu {
                     }
                     default -> System.out.println("Выберите пункт от 0 до 17.");
                 }
+            // ловим ошибки здесь, чтобы кривой ввод не ронял прогу, а просто печатал сообщение и показывал меню заново
             } catch (NumberFormatException e) {
                 System.out.println("Ошибка: введите целое число допустимого размера.");
             } catch (DateTimeParseException e) {
@@ -76,33 +82,39 @@ public final class ConsoleMenu {
             } catch (IOException e) {
                 System.out.println("Не удалось сохранить Excel: " + e.getMessage());
             } catch (NoSuchElementException e) {
+                // это Scanner говорит, что ввод закончился (ctrl+z или конец строки в тесте), просто выходим
                 return;
             }
         }
     }
 
+    // печатает подсказку и читает строку без пробелов по краям
     private String read(String prompt) {
         System.out.print(prompt);
         return input.nextLine().strip();
     }
 
+    // мелкие помощники для ввода, если ввели не число или не дату, вылетит исключение, его поймает run()
     private long number(String prompt) { return Long.parseLong(read(prompt)); }
     private long id() { return number("ID бронирования: "); }
     private int spot() { return Integer.parseInt(read("Место (1–50): ")); }
     private LocalDate date(String label) { return LocalDate.parse(read(label + " (ГГГГ-ММ-ДД): ")); }
 
+    // читаем статус текстом, регистр не важен: и created, и CREATED подойдут
     private BookingStatus status() {
-        String value = read("Статус (CREATED / CONFIRMED / COMPLETED / CANCELLED): ");
-        try { return BookingStatus.valueOf(value.toUpperCase(Locale.ROOT)); }
+        String statusText = read("Статус (CREATED / CONFIRMED / COMPLETED / CANCELLED): ");
+        try { return BookingStatus.valueOf(statusText.toUpperCase(Locale.ROOT)); }
         catch (IllegalArgumentException e) { throw new IllegalArgumentException("Неизвестный статус."); }
     }
 
+    // печатает брони табличкой, вместо id сотрудника показываем его имя
     private void display(List<Booking> bookings) {
-        Map<Long, String> names = new HashMap<>();
-        service.employees().forEach(e -> names.put(e.id(), e.name()));
+        // мапа id сотрудника -> имя, чтобы не искать сотрудника заново для каждой строки
+        Map<Long, String> employeeNamesById = new HashMap<>();
+        service.employees().forEach(employee -> employeeNamesById.put(employee.id(), employee.name()));
         System.out.println("ID | Сотрудник | Место | Дата | Статус");
         if (bookings.isEmpty()) System.out.println("Бронирований нет.");
-        bookings.forEach(b -> System.out.printf("%d | %s | %d | %s | %s%n",
-            b.id(), names.get(b.employeeId()), b.spot(), b.date(), b.status()));
+        bookings.forEach(booking -> System.out.printf("%d | %s | %d | %s | %s%n",
+            booking.id(), employeeNamesById.get(booking.employeeId()), booking.spot(), booking.date(), booking.status()));
     }
 }

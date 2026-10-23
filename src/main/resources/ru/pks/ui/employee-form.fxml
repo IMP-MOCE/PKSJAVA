@@ -3,7 +3,7 @@
 <?import javafx.scene.layout.VBox?>
 <VBox xmlns:fx="http://javafx.com/fxml/1" spacing="10" prefWidth="420" styleClass="form">
     <Label text="ФИО"/>
-    <TextField fx:id="name" promptText="Иван Петров"/>
+    <TextField fx:id="nameField" promptText="Иван Петров"/>
     <Label text="Корпоративная почта"/>
-    <TextField fx:id="email" promptText="petrov@company.ru"/>
+    <TextField fx:id="emailField" promptText="petrov@company.ru"/>
 </VBox>

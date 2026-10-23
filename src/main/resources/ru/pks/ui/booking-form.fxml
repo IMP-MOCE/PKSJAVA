@@ -3,10 +3,10 @@
 <?import javafx.scene.layout.VBox?>
 <VBox xmlns:fx="http://javafx.com/fxml/1" spacing="10" prefWidth="420" styleClass="form">
     <Label text="Сотрудник"/>
-    <ComboBox fx:id="employee" promptText="Выберите сотрудника" maxWidth="Infinity"/>
+    <ComboBox fx:id="employeeComboBox" promptText="Выберите сотрудника" maxWidth="Infinity"/>
     <Label text="Место (1–50)"/>
-    <TextField fx:id="spot" promptText="Например, 24"/>
+    <TextField fx:id="spotField" promptText="Например, 24"/>
     <Label text="Дата бронирования"/>
-    <DatePicker fx:id="date" maxWidth="Infinity"/>
+    <DatePicker fx:id="datePicker" maxWidth="Infinity"/>
     <Label text="Бронь занимает место на весь день. Статус меняется в главном окне." wrapText="true" styleClass="hint"/>
 </VBox>

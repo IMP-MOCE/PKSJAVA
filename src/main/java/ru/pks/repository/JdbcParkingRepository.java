@@ -1,13 +1,19 @@
 package ru.pks.repository;
 
-import ru.pks.config.Database;
-import ru.pks.exception.DataAccessException;
-import ru.pks.model.*;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import ru.pks.config.Database;
+import ru.pks.exception.DataAccessException;
+import ru.pks.model.Booking;
+import ru.pks.model.BookingStatus;
+import ru.pks.model.Employee;
+
+// настоящая реализация ParkingRepository, ходит в postgres через обычный jdbc
+// каждый метод работает по одной схеме:
+// открыли подключение -> подготовили sql -> выполнили -> перегнали строки в java-объекты
 public final class JdbcParkingRepository implements ParkingRepository {
     private final Database database;
 
@@ -15,76 +21,97 @@ public final class JdbcParkingRepository implements ParkingRepository {
         this.database = database;
     }
 
+    @Override
     public List<Employee> employees() {
-        try (var c = database.connect();
-             var s = c.prepareStatement("SELECT * FROM employees ORDER BY id");
-             var r = s.executeQuery()) {
-            List<Employee> result = new ArrayList<>();
-            while (r.next()) result.add(new Employee(r.getLong("id"), r.getString("name"), r.getString("email")));
-            return result;
+        try (var connection = database.connect();
+             var statement = connection.prepareStatement("SELECT * FROM employees ORDER BY id");
+             var resultSet = statement.executeQuery()) {
+            List<Employee> employees = new ArrayList<>();
+            while (resultSet.next()) {
+                employees.add(new Employee(resultSet.getLong("id"), resultSet.getString("name"), resultSet.getString("email")));
+            }
+            return employees;
         } catch (SQLException e) { throw failure(e); }
     }
 
+    @Override
     public Employee addEmployee(String name, String email) {
-        try (var c = database.connect();
-             var s = c.prepareStatement("INSERT INTO employees(name, email) VALUES (?, ?) RETURNING id")) {
-            s.setString(1, name);
-            s.setString(2, email);
-            try (var r = s.executeQuery()) {
-                r.next();
-                return new Employee(r.getLong(1), name, email);
+        try (var connection = database.connect();
+             var statement = connection.prepareStatement("INSERT INTO employees(name, email) VALUES (?, ?) RETURNING id")) {
+            statement.setString(1, name);
+            statement.setString(2, email);
+            try (var resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return new Employee(resultSet.getLong(1), name, email);
             }
         } catch (SQLException e) { throw failure(e); }
     }
 
+    @Override
     public List<Booking> bookings() {
-        try (var c = database.connect();
-             var s = c.prepareStatement("SELECT * FROM bookings ORDER BY id");
-             var r = s.executeQuery()) {
-            List<Booking> result = new ArrayList<>();
-            while (r.next()) result.add(new Booking(r.getLong("id"), r.getLong("employee_id"),
-                r.getInt("spot"), r.getObject("booking_date", LocalDate.class),
-                BookingStatus.valueOf(r.getString("status"))));
-            return result;
+        try (var connection = database.connect();
+             var statement = connection.prepareStatement("SELECT * FROM bookings ORDER BY id");
+             var resultSet = statement.executeQuery()) {
+            List<Booking> bookings = new ArrayList<>();
+            while (resultSet.next()) {
+                // статус в базе хранится строкой типа "CREATED", valueOf превращает её обратно в enum
+                bookings.add(new Booking(resultSet.getLong("id"), resultSet.getLong("employee_id"),
+                    resultSet.getInt("spot"), resultSet.getObject("booking_date", LocalDate.class),
+                    BookingStatus.valueOf(resultSet.getString("status"))));
+            }
+            return bookings;
         } catch (SQLException e) { throw failure(e); }
     }
 
-    public Booking save(Booking b) {
-        String sql = b.id() == 0
+    @Override
+    public Booking save(Booking booking) {
+        // если id = 0, значит брони ещё нет, делаем INSERT, иначе UPDATE по id
+        boolean isNewBooking = booking.id() == 0;
+        String sql = isNewBooking
             ? "INSERT INTO bookings(employee_id, spot, booking_date, status) VALUES (?, ?, ?, ?) RETURNING id"
             : "UPDATE bookings SET employee_id=?, spot=?, booking_date=?, status=? WHERE id=? RETURNING id";
-        try (var c = database.connect(); var s = c.prepareStatement(sql)) {
-            s.setLong(1, b.employeeId());
-            s.setInt(2, b.spot());
-            s.setObject(3, b.date());
-            s.setString(4, b.status().name());
-            if (b.id() != 0) s.setLong(5, b.id());
-            try (var r = s.executeQuery()) {
-                if (!r.next()) throw new IllegalArgumentException("Бронирование не найдено.");
-                return new Booking(r.getLong(1), b.employeeId(), b.spot(), b.date(), b.status());
+        try (var connection = database.connect(); var statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, booking.employeeId());
+            statement.setInt(2, booking.spot());
+            statement.setObject(3, booking.date());
+            statement.setString(4, booking.status().name());
+            // пятый ? есть только в UPDATE (WHERE id=?)
+            if (!isNewBooking) statement.setLong(5, booking.id());
+            try (var resultSet = statement.executeQuery()) {
+                // если UPDATE не нашёл строку с таким id, RETURNING ничего не вернёт
+                if (!resultSet.next()) throw new IllegalArgumentException("Бронирование не найдено.");
+                return new Booking(resultSet.getLong(1), booking.employeeId(), booking.spot(), booking.date(), booking.status());
             }
         } catch (SQLException e) { throw failure(e); }
     }
 
+    @Override
     public boolean delete(long id) {
-        try (var c = database.connect(); var s = c.prepareStatement("DELETE FROM bookings WHERE id=?")) {
-            s.setLong(1, id);
-            return s.executeUpdate() > 0;
+        try (var connection = database.connect(); var statement = connection.prepareStatement("DELETE FROM bookings WHERE id=?")) {
+            statement.setLong(1, id);
+            int deletedRowsCount = statement.executeUpdate();
+            return deletedRowsCount > 0;
         } catch (SQLException e) { throw failure(e); }
     }
 
+    @Override
     public List<String> tables() {
-        try (var c = database.connect();
-             var s = c.prepareStatement("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename");
-             var r = s.executeQuery()) {
-            List<String> result = new ArrayList<>();
-            while (r.next()) result.add(r.getString(1));
-            return result;
+        // pg_tables это системная табличка постгреса со списком всех таблиц, берём только наши из схемы public
+        try (var connection = database.connect();
+             var statement = connection.prepareStatement("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename");
+             var resultSet = statement.executeQuery()) {
+            List<String> tableNames = new ArrayList<>();
+            while (resultSet.next()) tableNames.add(resultSet.getString(1));
+            return tableNames;
         } catch (SQLException e) { throw failure(e); }
     }
 
+    // переводим ошибку постгреса на человеческий
+    // у каждой ошибки есть код SQLState, например 23505 это нарушение уникальности
+    // (тот же email или уникальные индексы на место/сотрудника в день из sql/schema.sql)
     private DataAccessException failure(SQLException e) {
-        String message = switch (e.getSQLState() == null ? "" : e.getSQLState()) {
+        String sqlState = e.getSQLState() == null ? "" : e.getSQLState();
+        String message = switch (sqlState) {
             case "23505" -> "Такая почта уже есть, место занято или у сотрудника уже есть бронь на эту дату.";
             case "23503" -> "Сотрудник не найден или используется в бронированиях.";
             case "23514", "23502" -> "Данные нарушают ограничения базы.";
