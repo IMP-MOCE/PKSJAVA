@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Удаление брони')}"></head>
+<body>
+<div th:replace="~{layout :: page('bookings', ~{::section})}">
+<section>
+  <h1 th:text="${'Удалить бронь ' + booking.code + '?'}"></h1>
+  <form class="panel editor-form" method="post" th:action="@{/bookings/{id}/permanent(id=${booking.id})}">
+    <p>Бронь и её заметки будут удалены без возможности восстановления</p>
+    <input type="hidden" name="version" th:value="${booking.version}">
+    <div class="dialog-actions">
+      <a class="button-link" th:href="@{/bookings(archived=true)}">Отмена</a>
+      <button class="danger">Удалить навсегда</button>
+    </div>
+  </form>
+</section>
+</div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Сотрудник')}"></head>
+<body>
+<div th:replace="~{layout :: page('employees', ~{::section})}">
+<section>
+  <h1 th:text="${employee == null} ? 'Новый сотрудник' : 'Изменить сотрудника'"></h1>
+  <form class="panel editor-form" method="post"
+        th:action="${employee == null} ? @{/employees} : @{/employees/{id}/edit(id=${employee.id})}">
+    <input type="hidden" name="version" th:value="${employee == null ? 0 : employee.version}">
+    <label>Имя<input name="name" required maxlength="100" th:value="${employee?.name}"></label>
+    <label>Почта<input name="email" required type="email" maxlength="100" th:value="${employee?.email}"></label>
+    <label class="checkbox"><input type="hidden" name="_active" value="on"><input type="checkbox" name="active" value="true" th:checked="${employee == null or employee.active}">Может бронировать</label>
+    <div class="dialog-actions"><a class="button-link" th:href="@{/employees}">Отмена</a><button class="primary">Сохранить</button></div>
+  </form>
+</section>
+</div>
+</body>
+</html>

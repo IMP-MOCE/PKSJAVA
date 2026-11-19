@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS bookings (
 );
 
 -- Защита от двойного бронирования при одновременной работе приложений.
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE;
 CREATE UNIQUE INDEX IF NOT EXISTS booking_spot_date ON bookings(spot, booking_date)
-    WHERE status IN ('CREATED', 'CONFIRMED');
+    WHERE status IN ('CREATED', 'CONFIRMED') AND NOT archived;
 CREATE UNIQUE INDEX IF NOT EXISTS booking_employee_date ON bookings(employee_id, booking_date)
-    WHERE status IN ('CREATED', 'CONFIRMED');
+    WHERE status IN ('CREATED', 'CONFIRMED') AND NOT archived;

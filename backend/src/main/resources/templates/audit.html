@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Журнал действий')}"></head>
+<body>
+<div th:replace="~{layout :: page('audit', ~{::section})}">
+<section>
+  <h1>Журнал действий</h1>
+  <form id="audit-search" class="panel search-row" method="get" th:action="@{/admin/audit}">
+    <input name="q" th:value="${q}" aria-label="Поиск" placeholder="Пользователь, событие или код запроса">
+    <select name="sort" aria-label="Порядок">
+      <option value="occurred,desc">Новые сначала</option>
+      <option value="occurred,asc" th:selected="${sort == 'occurred,asc'}">Старые сначала</option>
+      <option value="actor,asc" th:selected="${sort == 'actor,asc'}">По пользователю</option>
+      <option value="event,asc" th:selected="${sort == 'event,asc'}">По событию</option>
+    </select>
+    <button class="primary">Найти</button>
+  </form>
+  <div class="panel table-wrap">
+    <table>
+      <thead><tr><th>Время</th><th>Пользователь</th><th>Событие</th><th>Описание</th><th>Код запроса</th></tr></thead>
+      <tbody>
+        <tr th:each="event : ${result.content}">
+          <td th:text="${#temporals.format(event.occurredAt, 'dd.MM.yyyy HH:mm', 'Europe/Moscow')}"></td>
+          <td th:text="${event.actorEmail ?: 'Система'}"></td>
+          <td th:text="${event.eventType}"></td>
+          <td th:text="${event.summary}"></td>
+          <td th:text="${event.correlationId}"></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" th:if="${result.empty}">События не найдены</p>
+  </div>
+  <div class="pagination" th:if="${result.totalPages > 0}">
+    <span th:text="${'Страница ' + (result.number + 1) + ' из ' + result.totalPages}"></span>
+    <button form="audit-search" name="page" th:value="${result.number - 1}" th:disabled="${result.first}">Назад</button>
+    <button form="audit-search" name="page" th:value="${result.number + 1}" th:disabled="${result.last}">Далее</button>
+  </div>
+</section>
+</div>
+</body>
+</html>

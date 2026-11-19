@@ -1,8 +1,13 @@
 ﻿# One entry point for local setup, launch and checks.
-param([ValidateSet('run','console','test','build','seed','setup','db-start','db-stop','db-status','db-shell')]
+param([ValidateSet('run','console','test','build','seed','setup','db-start','db-stop','db-status','db-shell','web','web-test','web-test-db','web-build','web-stop')]
       [string]$Action = 'run')
 
 $ErrorActionPreference = 'Stop'
+if ($Action -in @('web','web-test','web-test-db','web-build','web-stop')) {
+    $backendAction = switch ($Action) { 'web' { 'run' }; 'web-test' { 'test' }; 'web-test-db' { 'test-db' }; 'web-build' { 'build' }; 'web-stop' { 'stop' } }
+    & "$PSScriptRoot\backend\backend.ps1" $backendAction
+    return
+}
 $projectRoot = $PSScriptRoot
 $env:JAVA_HOME = Join-Path $projectRoot '.tools\jdk'
 $env:MAVEN_HOME = Join-Path $projectRoot '.tools\maven'

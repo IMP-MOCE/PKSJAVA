@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Обзор парковки')}"></head>
+<body>
+<div th:replace="~{layout :: page('analytics', ~{::section})}">
+<section>
+  <div class="page-heading"><h1>Обзор парковки</h1><a class="button-link" th:href="@{/analytics}">Обновить</a></div>
+  <div class="stat-grid">
+    <div class="stat-card"><span>Всего бронирований</span><strong th:text="${summary.total}"></strong></div>
+    <div class="stat-card"><span>Текущих записей</span><strong th:text="${summary.active}"></strong></div>
+    <div class="stat-card"><span>Действующих броней</span><strong th:text="${summary.open}"></strong></div>
+    <div class="stat-card"><span>Свободно сегодня</span><strong th:text="${summary.freeToday}"></strong></div>
+    <div class="stat-card"><span>Занято сегодня</span><strong th:text="${summary.occupiedToday}"></strong></div>
+    <div class="stat-card"><span>В архиве</span><strong th:text="${summary.archived}"></strong></div>
+    <div class="stat-card"><span>Гостевых визитов</span><strong th:text="${summary.guests}"></strong></div>
+    <div class="stat-card"><span>Средний номер места</span><strong th:text="${#numbers.formatDecimal(summary.averageSpot, 1, 1)}"></strong></div>
+  </div>
+  <div class="analytics-grid">
+    <div class="panel">
+      <h2>По статусам</h2>
+      <div class="stat-row" th:each="item : ${summary.byStatus}"><span th:text="${statusLabels[item.key]}"></span><strong th:text="${item.value}"></strong></div>
+    </div>
+    <div class="panel">
+      <h2>По срочности</h2>
+      <div class="stat-row" th:each="item : ${summary.byUrgency}"><span th:text="${urgencyLabels[item.key]}"></span><strong th:text="${item.value}"></strong></div>
+    </div>
+    <div class="panel">
+      <h2>По сотрудникам</h2>
+      <div class="stat-row" th:each="item : ${summary.byEmployee}"><span th:text="${item.key}"></span><strong th:text="${item.value}"></strong></div>
+    </div>
+  </div>
+</section>
+</div>
+</body>
+</html>

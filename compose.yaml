@@ -1,6 +1,23 @@
 name: parking
 
 services:
+  backend:
+    profiles: [web]
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/pksjava
+      DB_USER: pks_app
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Europe/Moscow
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:18-alpine
     restart: unless-stopped

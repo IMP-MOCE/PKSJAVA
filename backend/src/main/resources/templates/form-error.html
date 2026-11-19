@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Ошибка')}"></head>
+<body>
+<section class="login-card">
+  <h1 th:text="${problem}">Ошибка формы</h1>
+  <ul th:if="${fields}">
+    <li th:each="field : ${fields}" th:text="${field.field + ': ' + field.defaultMessage}"></li>
+  </ul>
+  <p>Вернитесь назад в браузере, чтобы исправить форму</p>
+  <a th:href="@{/}">На главную</a>
+</section>
+</body>
+</html>

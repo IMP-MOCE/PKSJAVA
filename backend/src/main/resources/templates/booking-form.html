@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Бронирование')}"></head>
+<body>
+<div th:replace="~{layout :: page('bookings', ~{::section})}">
+<section>
+  <h1 th:text="${booking == null} ? 'Новая бронь' : 'Изменить бронь'"></h1>
+  <form class="panel editor-form" method="post"
+        th:action="${booking == null} ? @{/bookings} : @{/bookings/{id}/edit(id=${booking.id})}">
+    <input type="hidden" name="version" th:value="${booking == null ? 0 : booking.version}">
+    <div class="form-grid">
+      <label>Номер брони<input name="code" required maxlength="100" th:value="${booking == null ? newCode : booking.code}"></label>
+      <label>Сотрудник<select name="employeeId" required>
+        <option value="">Выберите сотрудника</option>
+        <option th:each="employee : ${employees}" th:if="${employee.active or (booking != null and booking.employeeId == employee.id)}"
+                th:value="${employee.id}" th:text="${employee.name + ' · ' + employee.email}"
+                th:selected="${booking != null and booking.employeeId == employee.id}"></option>
+      </select></label>
+      <label>Место<input name="spot" type="number" min="1" max="50" required th:value="${booking?.spot}"></label>
+      <label>Дата<input name="date" type="date" required th:value="${booking == null ? today : booking.date}"></label>
+      <label>Статус<select name="status" required>
+        <option th:each="status : ${statuses}" th:value="${status.name()}" th:text="${statusLabels[status.name()]}"
+                th:selected="${booking != null and booking.status == status}"></option>
+      </select></label>
+      <label>Цель<input name="purpose" maxlength="200" required th:value="${booking == null ? 'Рабочий день' : booking.purpose}"></label>
+      <label class="wide">Теги через запятую<input name="tags" th:value="${booking == null ? '' : #strings.setJoin(booking.tags, ', ')}"></label>
+      <label class="checkbox"><input type="hidden" name="_guest" value="on"><input name="guest" type="checkbox" value="true" th:checked="${booking != null and booking.guest}">Гостевой визит</label>
+    </div>
+    <div class="dialog-actions"><a class="button-link" th:href="@{/bookings}">Отмена</a><button class="primary">Сохранить</button></div>
+  </form>
+</section>
+</div>
+</body>
+</html>

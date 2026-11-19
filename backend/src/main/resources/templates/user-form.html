@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Пользователь')}"></head>
+<body>
+<div th:replace="~{layout :: page('users', ~{::section})}">
+<section>
+  <h1 th:text="${editedUser == null} ? 'Новый пользователь' : 'Изменить пользователя'"></h1>
+  <form class="panel editor-form" method="post"
+        th:action="${editedUser == null} ? @{/admin/users} : @{/admin/users/{id}/edit(id=${editedUser.id})}">
+    <input th:if="${editedUser}" type="hidden" name="version" th:value="${editedUser.version}">
+    <label>Имя<input name="displayName" required maxlength="160" th:value="${editedUser?.displayName}"></label>
+    <label>Почта<input name="email" type="email" required maxlength="254" th:value="${editedUser?.email}"></label>
+    <label th:unless="${editedUser}">Временный пароль<input name="temporaryPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+    <fieldset>
+      <legend>Роли</legend>
+      <label class="checkbox" th:each="role : ${T(ru.pks.backend.domain.Role).values()}">
+        <input name="roles" type="checkbox" th:value="${role.name()}"
+               th:checked="${editedUser == null ? role.name() == 'VIEWER' : editedUser.roles.contains(role)}">
+        <span th:text="${roleLabels[role.name()]}"></span>
+      </label>
+    </fieldset>
+    <label class="checkbox" th:if="${editedUser}">
+      <input type="hidden" name="_enabled" value="on">
+      <input name="enabled" type="checkbox" value="true" th:checked="${editedUser.enabled}">Учётная запись активна
+    </label>
+    <div class="dialog-actions">
+      <a class="button-link" th:href="@{/admin/users}">Отмена</a>
+      <button class="primary">Сохранить</button>
+    </div>
+  </form>
+</section>
+</div>
+</body>
+</html>

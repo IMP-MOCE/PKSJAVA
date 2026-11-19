@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Бронирования')}"></head>
+<body>
+<div th:replace="~{layout :: page('bookings', ~{::section})}">
+<section>
+  <div class="page-heading">
+    <h1>Бронирования</h1>
+    <a th:if="${canEdit}" class="button-link primary" th:href="@{/bookings/new}">Новая бронь</a>
+  </div>
+  <form id="filters" class="panel filters" method="get" th:action="@{/bookings}" th:object="${bookingFilter}">
+    <label class="wide">Поиск<input name="q" th:value="*{q}" placeholder="Номер, имя, почта или цель"></label>
+    <label>Сотрудник
+      <select name="employeeId">
+        <option value="">Все сотрудники</option>
+        <option th:each="employee : ${employees}" th:value="${employee.id}" th:text="${employee.name}" th:selected="${employee.id == bookingFilter.employeeId}"></option>
+      </select>
+    </label>
+    <label>Статус
+      <select name="status">
+        <option value="">Все статусы</option>
+        <option th:each="item : ${statusLabels}" th:value="${item.key}" th:text="${item.value}" th:selected="${bookingFilter.status != null and bookingFilter.status.name() == item.key}"></option>
+      </select>
+    </label>
+    <label>Период с<input type="date" name="from" th:value="*{from}"></label>
+    <label>По<input type="date" name="to" th:value="*{to}"></label>
+    <details class="advanced" th:open="*{archived == true or guest != null or urgency != null or spot != null or !#strings.isEmpty(tag)}">
+      <summary>Дополнительные фильтры</summary>
+      <div class="filter-grid">
+        <label>Записи<select name="archived">
+          <option value="false">Текущие</option>
+          <option value="true" th:selected="*{archived == true}">Архив</option>
+        </select></label>
+        <label>Гостевой визит<select name="guest">
+          <option value="">Любой</option>
+          <option value="true" th:selected="*{guest == true}">Да</option>
+          <option value="false" th:selected="*{guest == false}">Нет</option>
+        </select></label>
+        <label>Срочность<select name="urgency">
+          <option value="">Любая</option>
+          <option th:each="item : ${urgencyLabels}" th:value="${item.key}" th:text="${item.value}" th:selected="${bookingFilter.urgency != null and bookingFilter.urgency.name() == item.key}"></option>
+        </select></label>
+        <label>Тег<input name="tag" maxlength="50" th:value="*{tag}"></label>
+        <label>Сравнение<select name="spotOp">
+          <option value="eq">Равно</option>
+          <option value="gt" th:selected="*{spotOp == 'gt'}">Больше</option>
+          <option value="gte" th:selected="*{spotOp == 'gte'}">Не меньше</option>
+          <option value="lt" th:selected="*{spotOp == 'lt'}">Меньше</option>
+          <option value="lte" th:selected="*{spotOp == 'lte'}">Не больше</option>
+        </select></label>
+        <label>Номер места<input name="spot" type="number" min="1" max="50" th:value="*{spot}"></label>
+      </div>
+    </details>
+    <label class="wide">Сортировка<select name="sort">
+      <option value="date,desc">Дата: новые сначала</option>
+      <option value="date,asc" th:selected="${sort == 'date,asc'}">Дата: старые сначала</option>
+      <option value="spot,asc" th:selected="${sort == 'spot,asc'}">Номер места</option>
+      <option value="code,asc" th:selected="${sort == 'code,asc'}">Номер брони</option>
+      <option value="employee,asc" th:selected="${sort == 'employee,asc'}">Сотрудник</option>
+      <option value="status,asc" th:selected="${sort == 'status,asc'}">Статус</option>
+    </select></label>
+    <label>На странице<select name="size">
+      <option th:each="count : ${ {10, 25, 50, 100} }" th:value="${count}" th:text="${count}" th:selected="${result.size == count}"></option>
+    </select></label>
+    <div class="filter-actions">
+      <button class="primary">Найти</button>
+      <a class="button-link" th:href="@{/bookings}">Сбросить</a>
+      <button th:formaction="@{/bookings/export}">Экспорт CSV</button>
+    </div>
+  </form>
+  <p class="table-toolbar" th:text="${'Всего записей: ' + result.totalElements}"></p>
+  <div class="notice" th:if="${bulkResult}" role="status">
+    <p th:text="${'Успешно: ' + bulkResult.successful.size() + ', ошибок: ' + bulkResult.errors.size()}"></p>
+    <ul th:unless="${bulkResult.errors.isEmpty()}">
+      <li th:each="error : ${bulkResult.errors}" th:text="${error.id + ': ' + error.message}"></li>
+    </ul>
+  </div>
+  <form th:if="${canEdit and !result.empty}" id="bulk" class="panel bulk-bar" method="post" th:action="@{/bookings/bulk}">
+    <input type="hidden" name="archived" th:value="${bookingFilter.archived == true}">
+    <label>Действие с выбранными
+      <select name="action">
+        <option value="ARCHIVE">В архив</option>
+        <option value="RESTORE">Восстановить</option>
+        <option value="STATUS">Изменить статус</option>
+        <option value="ADD_TAG">Добавить тег</option>
+        <option value="REMOVE_TAG">Убрать тег</option>
+      </select>
+    </label>
+    <label>Новый статус<select name="status">
+      <option value="">Не задан</option>
+      <option th:each="item : ${statusLabels}" th:value="${item.key}" th:text="${item.value}"></option>
+    </select></label>
+    <label>Тег<input name="tag" maxlength="50"></label>
+    <button>Применить</button>
+  </form>
+  <div class="panel table-wrap">
+    <table>
+      <thead><tr><th th:if="${canEdit}">Выбрать</th><th>Бронь / сотрудник</th><th>Место</th><th>Дата</th><th>Статус</th><th>Срочность</th><th>Действия</th></tr></thead>
+      <tbody>
+        <tr th:each="booking : ${result.content}">
+          <td th:if="${canEdit}"><input type="checkbox" form="bulk" name="ids" th:value="${booking.id}" th:aria-label="${'Выбрать ' + booking.code}"></td>
+          <td>
+            <strong th:text="${booking.code}"></strong>
+            <small th:text="${booking.employeeName + (booking.guest ? ' · гость' : '')}"></small>
+            <small th:text="${booking.purpose}"></small>
+            <small th:unless="${booking.tags.isEmpty()}" th:text="${#strings.setJoin(booking.tags, ', ')}"></small>
+          </td>
+          <td th:text="${booking.spot}"></td>
+          <td th:text="${#temporals.format(booking.date, 'dd.MM.yyyy')}"></td>
+          <td><span class="badge" th:classappend="${booking.status.name()}" th:text="${statusLabels[booking.status.name()]}"></span></td>
+          <td><span class="badge" th:classappend="${booking.urgency.name()}" th:text="${urgencyLabels[booking.urgency.name()]}"></span></td>
+          <td class="row-actions">
+            <a th:if="${canEdit and !booking.archived and booking.status.active()}" th:href="@{/bookings/{id}/edit(id=${booking.id})}">Изменить</a>
+            <a th:href="@{/bookings/{id}/notes(id=${booking.id})}">Заметки</a>
+            <form th:if="${canEdit}" method="post"
+                  th:action="${booking.archived} ? @{/bookings/{id}/restore(id=${booking.id})} : @{/bookings/{id}/archive(id=${booking.id})}">
+              <input type="hidden" name="version" th:value="${booking.version}">
+              <button th:text="${booking.archived} ? 'Восстановить' : 'В архив'"></button>
+            </form>
+            <a th:if="${admin and booking.archived}" class="danger" th:href="@{/bookings/{id}/permanent(id=${booking.id})}">Удалить навсегда</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" th:if="${result.empty}">Бронирований нет</p>
+  </div>
+  <div class="pagination" th:if="${result.totalPages > 0}">
+    <span th:text="${'Страница ' + (result.number + 1) + ' из ' + result.totalPages}"></span>
+    <button form="filters" name="page" th:value="${result.number - 1}" th:disabled="${result.first}">Назад</button>
+    <button form="filters" name="page" th:value="${result.number + 1}" th:disabled="${result.last}">Далее</button>
+  </div>
+</section>
+</div>
+</body>
+</html>

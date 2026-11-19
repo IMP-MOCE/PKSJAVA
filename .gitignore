@@ -1,6 +1,7 @@
 .tools/
 .local/
 target/
+**/target/
 .idea/
 *.iml
 .env

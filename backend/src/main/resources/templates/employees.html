@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Сотрудники')}"></head>
+<body>
+<div th:replace="~{layout :: page('employees', ~{::section})}">
+<section>
+  <div class="page-heading">
+    <h1>Сотрудники</h1>
+    <a class="button-link primary" th:if="${admin}" th:href="@{/employees/new}">Добавить сотрудника</a>
+  </div>
+  <div class="panel table-wrap">
+    <table>
+      <thead><tr><th>Имя</th><th>Почта</th><th>Доступ к бронированию</th><th th:if="${admin}">Действия</th></tr></thead>
+      <tbody>
+        <tr th:each="employee : ${employees}">
+          <td th:text="${employee.name}"></td>
+          <td th:text="${employee.email}"></td>
+          <td th:text="${employee.active} ? 'Разрешено' : 'Отключено'"></td>
+          <td th:if="${admin}"><a th:href="@{/employees/{id}/edit(id=${employee.id})}">Изменить</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" th:if="${employees.isEmpty()}">Сотрудников пока нет</p>
+  </div>
+</section>
+</div>
+</body>
+</html>

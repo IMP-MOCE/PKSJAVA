@@ -50,7 +50,7 @@ public final class JdbcParkingRepository implements ParkingRepository {
     @Override
     public List<Booking> bookings() {
         try (var connection = database.connect();
-             var statement = connection.prepareStatement("SELECT * FROM bookings ORDER BY id");
+             var statement = connection.prepareStatement("SELECT * FROM bookings WHERE NOT archived ORDER BY id");
              var resultSet = statement.executeQuery()) {
             List<Booking> bookings = new ArrayList<>();
             while (resultSet.next()) {
