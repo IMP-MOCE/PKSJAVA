@@ -20,8 +20,8 @@ function Invoke-WebCompose {
     if ($LASTEXITCODE -ne 0) { throw 'Docker command failed. Open Docker Desktop and retry.' }
 }
 
-if ($Action -eq 'test') { Invoke-BackendMaven test; return }
-if ($Action -eq 'build') { Invoke-BackendMaven package; return }
+if ($Action -eq 'test') { Invoke-BackendMaven clean test; return }
+if ($Action -eq 'build') { Invoke-BackendMaven clean package; return }
 
 $envFile = Join-Path $projectRoot '.env'
 if (!(Test-Path -LiteralPath $envFile)) {
@@ -64,7 +64,7 @@ if ($Action -eq 'test-db') {
     finally { Remove-Item Env:\RUN_POSTGRES_TESTS -ErrorAction SilentlyContinue }
     return
 }
-Invoke-BackendMaven package '-DskipTests'
+Invoke-BackendMaven clean package '-DskipTests'
 Invoke-WebCompose up -d --wait db
 $backup = Join-Path $localDir 'parking-before-kr3.dump'
 if (!(Test-Path -LiteralPath $backup)) {

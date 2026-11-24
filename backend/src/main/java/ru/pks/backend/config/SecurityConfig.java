@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -17,17 +16,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.web.cors.*;
 import ru.pks.backend.dto.ApiError;
 import ru.pks.backend.security.JwtAuthenticationFilter;
 import ru.pks.backend.security.PasswordChangeRequiredFilter;
-import ru.pks.backend.security.WebSessionFilter;
-import ru.pks.backend.error.AuthenticationFailedException;
-import ru.pks.backend.repository.UserAccountRepository;
-import ru.pks.backend.service.AuthService;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -40,48 +32,25 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
 
     @Bean
-    @Order(1)
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwt,
             PasswordChangeRequiredFilter passwordChange, ObjectMapper json) throws Exception {
-        http.securityMatcher("/api/**", "/actuator/**")
-                .csrf(csrf -> csrf.disable())
+        http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
+                        .requestMatchers("/actuator/**", "/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs/**", "/v3/api-docs.yaml").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()
+                        .anyRequest().permitAll())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, ex) -> error(json, request, response, 401, "Требуется вход"))
                         .accessDeniedHandler((request, response, ex) -> error(json, request, response, 403, "Недостаточно прав")))
                 .headers(headers -> headers.frameOptions(frame -> frame.deny()))
                 .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(passwordChange, JwtAuthenticationFilter.class);
-        return http.build();
-    }
-
-    @Bean
-    @Order(2)
-    public SecurityFilterChain webSecurity(HttpSecurity http, AuthService auth, UserAccountRepository users,
-            JwtAuthenticationFilter jwt) throws Exception {
-        http.authenticationManager(authentication -> {
-                    try {
-                        var user = auth.loginWeb(authentication.getName(), (String) authentication.getCredentials());
-                        return UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities());
-                    } catch (AuthenticationFailedException ex) {
-                        throw new BadCredentialsException(ex.getMessage(), ex);
-                    }
-                })
-                .authorizeHttpRequests(requests -> requests
-                        .requestMatchers("/login", "/styles.css", "/favicon.svg", "/error").permitAll()
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
-                .formLogin(login -> login.loginPage("/login").usernameParameter("email").defaultSuccessUrl("/bookings", true))
-                .logout(logout -> logout.logoutSuccessUrl("/login?logout"))
-                .addFilterAfter(new WebSessionFilter(users), SecurityContextHolderFilter.class)
-                .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

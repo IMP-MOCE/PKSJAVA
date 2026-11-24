@@ -18,7 +18,6 @@ import ru.pks.backend.repository.UserAccountRepository;
 import ru.pks.backend.security.CurrentUserService;
 import ru.pks.backend.security.JwtService;
 import ru.pks.backend.security.PasswordPolicy;
-import ru.pks.backend.security.UserPrincipal;
 import ru.pks.backend.web.RequestMetadata;
 
 import java.nio.charset.StandardCharsets;
@@ -70,11 +69,6 @@ public class AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         return issueSession(authenticate(request.email(), request.password(), request.effectiveClientType()));
-    }
-
-    @Transactional
-    public UserPrincipal loginWeb(String email, String password) {
-        return UserPrincipal.from(authenticate(email, password, ClientType.WEB));
     }
 
     private UserAccount authenticate(String login, String password, ClientType clientType) {

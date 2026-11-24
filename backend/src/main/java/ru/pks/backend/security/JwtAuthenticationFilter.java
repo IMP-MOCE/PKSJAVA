@@ -61,6 +61,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return uri.equals("/swagger-ui.html")
                 || uri.startsWith("/swagger-ui/")
                 || uri.equals("/v3/api-docs")
+                || uri.equals("/v3/api-docs.yaml")
                 || uri.startsWith("/v3/api-docs/");
     }
 

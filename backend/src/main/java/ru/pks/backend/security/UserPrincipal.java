@@ -14,14 +14,13 @@ public record UserPrincipal(
         UUID id,
         String email,
         String displayName,
-        long authVersion,
         boolean enabled,
         boolean passwordChangeRequired,
         Set<Role> roles) implements UserDetails {
 
     public static UserPrincipal from(UserAccount user) {
         return new UserPrincipal(user.getId(), user.getEmail(), user.getDisplayName(),
-                user.getAuthVersion(), user.isEnabled(), user.isPasswordChangeRequired(), Set.copyOf(user.getRoles()));
+                user.isEnabled(), user.isPasswordChangeRequired(), Set.copyOf(user.getRoles()));
     }
 
     @Override

@@ -138,6 +138,32 @@ class BackendApiTest {
         request("POST", "/api/auth/login", null, Map.of("email", "viewer@parking.test", "password", "UserChanged123!Pass")).andExpect(status().isUnauthorized());
     }
 
+    @Test @Order(5) void reactRoutesAndBrowserSession() throws Exception {
+        mvc.perform(get("/bookings/" + bookingId + "/notes"))
+                .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
+        mvc.perform(get("/admin/users/new"))
+                .andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
+        mvc.perform(get("/index.html")).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"root\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/assets/")));
+
+        var login = request("POST", "/api/auth/login", null, Map.of(
+                "email", "admin@parking.test", "password", "Changed123!Pass", "clientType", "WEB"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(cookie().httpOnly("parking_refresh", true))
+                .andReturn().getResponse();
+        var refreshCookie = login.getCookie("parking_refresh");
+        var refreshed = body(mvc.perform(post("/api/auth/refresh").cookie(refreshCookie))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.refreshToken").doesNotExist()));
+        request("GET", "/api/auth/me", refreshed.get("accessToken").asText(), null)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.email").value("admin@parking.test"));
+        mvc.perform(get("/v3/api-docs.yaml").cookie(login.getCookie("parking_swagger")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/bookings").cookie(login.getCookie("parking_swagger")))
+                .andExpect(status().isUnauthorized());
+    }
+
     private Map<String, Object> booking(String code, String employee, int spot, long version) {
         return Map.of("code", code, "employeeId", employee, "spot", spot, "date", LocalDate.now().toString(),
                 "status", "CREATED", "purpose", "Рабочий визит", "guest", true, "tags", List.of("гость"), "version", version);

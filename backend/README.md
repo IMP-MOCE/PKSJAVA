@@ -1,7 +1,7 @@
 # Backend корпоративной парковки, КР3
 
 Spring Boot 3.5.5, Java 21, Spring Data JPA, PostgreSQL, Flyway, Spring Security, JWT, Swagger.
-Веб-интерфейс работает на Spring MVC и Thymeleaf. Шаблоны находятся в `src/main/resources/templates`, стили в `src/main/resources/static`.
+Веб-интерфейс написан на React. Страницы и стили находятся в `frontend/src`.
 
 ## Запуск
 
@@ -16,18 +16,39 @@ Spring Boot 3.5.5, Java 21, Spring Data JPA, PostgreSQL, Flyway, Spring Security
 от 12 символов и не более 72 байт UTF-8. Пароль не должен содержать имя учётной записи.
 
 Скрипт использует локальные JDK и Maven из `.tools`, при необходимости устанавливает их существующим `project.ps1`.
-Он собирает JAR, запускает БД, сохраняет первоначальную резервную копию и запускает backend в Docker.
+Maven скачивает Node.js для сборки, собирает React и включает его в JAR.
+Скрипт запускает БД, сохраняет первоначальную резервную копию и запускает backend в Docker.
 Dockerfile упаковывает уже собранный `target/parking-backend-1.0.0.jar`.
 
 При ручном запуске сначала создайте `.env` по `.env.example`, затем:
 
 ```powershell
-mvn -f backend/pom.xml package
+mvn -f backend/pom.xml clean package
 docker compose --env-file .env --profile web up -d --build --wait
 ```
 
 В `.env` укажите пароль существующей БД. Смена `DB_PASSWORD` не меняет пароль в уже созданном томе PostgreSQL.
 Обычный `docker compose down` сохраняет данные. Не используйте `down -v` для рабочей базы.
+
+### Разработка в IntelliJ IDEA
+
+Запустите PostgreSQL из корня проекта командой `docker compose --env-file .env up -d --wait db`.
+Откройте `backend/pom.xml` как Maven-проект, выберите JDK 21 и запустите `ParkingBackendApplication`.
+В конфигурации запуска укажите корень репозитория как рабочую папку и добавьте аргументы:
+
+```text
+--spring.config.import=file:./.env[.properties] --server.address=127.0.0.1 --server.port=8081
+```
+
+Для разработки клиента с автообновлением запустите из корня проекта (потребуется Node.js 24):
+
+```powershell
+npm.cmd --prefix backend/frontend ci
+npm.cmd --prefix backend/frontend run dev
+```
+
+Откройте http://127.0.0.1:5173. Vite отправляет запросы к API на порт 8081. Для другого адреса backend задайте `PARKING_API_URL` перед запуском Vite.
+Можно также выполнить `npm.cmd --prefix backend/frontend run build` и открыть готовый клиент прямо на http://127.0.0.1:8081.
 
 Адреса:
 
@@ -48,7 +69,7 @@ docker compose --env-file .env --profile web up -d --build --wait
 и `repository/BookingRepository.java`. Цепочка одного запроса:
 
 ```text
-HTML-форма -> MVC-контроллер -> сервис -> JPA-репозиторий -> PostgreSQL
+React -> REST-контроллер -> сервис -> JPA-репозиторий -> PostgreSQL
 ```
 
 | Пакет | Что делает |
@@ -62,10 +83,10 @@ HTML-форма -> MVC-контроллер -> сервис -> JPA-репози�
 | `security` | Проверяет JWT, пароли и текущего пользователя |
 | `error` | Возвращает единый JSON ошибок |
 | `config` | Настраивает безопасность, OpenAPI и первого администратора |
-| `web` | Проверяет параметры страниц и присваивает запросу correlation ID |
+| `web` | Присваивает запросу correlation ID |
 
 Контроллеры возвращают DTO, JPA-сущности наружу не передаются.
-MVC-контроллеры из пакета `web` передают данные в модель страницы, затем Thymeleaf подставляет их в HTML. После сохранения браузер получает перенаправление на страницу результата.
+React отправляет запросы в `/api` и обновляет страницу по ответу. Spring Boot раздаёт собранный клиент и обрабатывает REST API.
 `AuditedVersionedEntity` содержит общие даты и `@Version`, без универсальных CRUD-контроллеров.
 В `BulkService` каждое действие получает отдельную транзакцию, поэтому ошибка одной брони не отменяет остальные.
 
@@ -160,9 +181,9 @@ PostgreSQL автоматически заполняет UUID, номер и д�
 `VIEWER` читает данные, заметки, аналитику и экспорт. `EDITOR` дополнительно меняет брони, заметки, запускает импорт.
 `ADMIN` также управляет сотрудниками, пользователями, просматривает аудит и может окончательно удалить архивную бронь.
 
-Вход через HTML-форму открывает серверную сессию. Spring Security проверяет CSRF-токен при отправке форм.
+Вход через React выдаёт access JWT и refresh-cookie. Клиент держит access JWT в памяти и восстанавливает вход через refresh при перезагрузке.
 Администратор из веб-интерфейса может открыть Swagger. Для вызовов REST API из Swagger нужен отдельный bearer-токен.
-Роли и активность перечитываются из БД. Смена или сброс пароля завершает прежние веб-сессии и делает прежние JWT недействительными.
+Роли и активность перечитываются из БД. Смена или сброс пароля отзывает refresh-сессии и делает прежние JWT недействительными.
 Пять неверных попыток входа блокируют учётную запись минимум на 5 минут.
 
 Клиенты REST API передают access JWT в заголовке `Authorization: Bearer ...`. Токен действует 15 минут.

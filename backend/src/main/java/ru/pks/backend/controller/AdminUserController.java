@@ -47,6 +47,11 @@ public class AdminUserController {
         return ResponseEntity.status(201).body(users.create(request));
     }
 
+    @GetMapping("/{id}")
+    public UserResponse get(@PathVariable UUID id) {
+        return users.get(id);
+    }
+
     @PutMapping("/{id}")
     public UserResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
         return users.update(id, request);
